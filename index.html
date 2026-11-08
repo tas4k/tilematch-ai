@@ -2,109 +2,155 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#101827">
 <title>TileMatch AI</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#101827;color:white;font-family:Arial,sans-serif;padding:22px}
-main{max-width:500px;margin:auto}
-h1{text-align:center;color:#62e6a5}
-.card{background:#1d2a3d;padding:20px;border-radius:18px;margin:18px 0}
-button{width:100%;padding:17px;border:0;border-radius:12px;font-size:17px;font-weight:bold;cursor:pointer}
-#power{background:#20bd79;color:#061a11}
-#test{background:#344966;color:white;margin-top:12px}
-.status{color:#62e6a5;font-weight:bold}
-.small{color:#aab8ca;font-size:13px;line-height:1.6}
-.stat{display:flex;justify-content:space-between;margin:15px 0}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 20px;
+  background: #101522;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+main { max-width: 500px; margin: auto; }
+h1 { text-align: center; color: #65e6b2; }
+.panel {
+  background: #1c2638;
+  padding: 18px;
+  border-radius: 14px;
+  margin-top: 20px;
+}
+p { color: #c5ccda; line-height: 1.5; }
+input, button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 12px;
+  border-radius: 9px;
+  font-size: 16px;
+}
+button {
+  border: 0;
+  background: #65e6b2;
+  color: #101522;
+  font-weight: bold;
+}
+button:disabled { opacity: .5; }
+img {
+  display: none;
+  width: 100%;
+  margin-top: 15px;
+  border-radius: 10px;
+}
+#status { color: #65e6b2; }
+#result {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-top: 16px;
+  color: #65e6b2;
+}
 </style>
 </head>
 <body>
 <main>
-<h1>⚡ TILEMATCH AI</h1>
-<p style="text-align:center">Intelligent Tile Solver</p>
+  <h1>TileMatch AI</h1>
+  <p style="text-align:center">
+    Your screenshot-based tile puzzle assistant
+  </p>
 
-<div class="card">
-<div class="stat"><b>AI SYSTEM</b><span id="status" class="status">OFF</span></div>
-<button id="power" onclick="toggleAI()">TURN AI ON</button>
-<p class="small" id="message">
-Solver is waiting to start.
-</p>
-</div>
+  <section class="panel">
+    <p id="status">Reader ready</p>
 
-<div class="card">
-<h3>🧠 Solver Engine</h3>
-<div class="stat"><span>Algorithm</span><b>Search & Match</b></div>
-<div class="stat"><span>Match requirement</span><b>3 tiles</b></div>
-<div class="stat"><span>Current level</span><b>51</b></div>
-<button id="test" onclick="testSolver()">TEST SOLVER ENGINE</button>
-<p id="result" class="small">Waiting for engine test.</p>
-</div>
+    <p>1. Take a screenshot of your Tile Match Ultimate board.</p>
+    <p>2. Select the screenshot below.</p>
 
-<div class="card">
-<h3>🪙 Coin Manager</h3>
-<div class="stat"><span>Coins</span><b id="coins">Not connected</b></div>
-<p class="small">
-Coin tracking and rewarded-ad integration are not connected yet.
-</p>
-</div>
+    <input id="photo" type="file" accept="image/*">
 
-<div class="card">
-<h3>Connection status</h3>
-<p class="small">
-Safari prototype: Running<br>
-Live game recognition: Not connected<br>
-Automatic game tapping: Not connected<br>
-Rewarded advertisements: Not connected
-</p>
-</div>
-<p class="small" style="text-align:center">
-TileMatch AI • Prototype 1.0
-</p>
+    <img id="preview" alt="Game screenshot preview">
+
+    <button id="analyze">Analyze My Board</button>
+
+    <div id="result">
+      Your move suggestions will appear here.
+    </div>
+  </section>
 </main>
 
 <script>
-let active=false;
+const WORKER_URL =
+  "https://tilematch-ai-reader.tagdemtas.workers.dev";
 
-function toggleAI(){
- active=!active;
- document.getElementById("status").textContent=active?"ON":"OFF";
- document.getElementById("power").textContent=
- active?"TURN AI OFF":"TURN AI ON";
- document.getElementById("message").textContent=
- active
- ?"AI engine enabled. Live game connection is not yet available."
- :"AI engine stopped.";
-}
+const photo = document.getElementById("photo");
+const preview = document.getElementById("preview");
+const analyze = document.getElementById("analyze");
+const result = document.getElementById("result");
+const statusText = document.getElementById("status");
 
-function solveTiles(tiles){
- let counts={};
- let cleared=0;
- for(let tile of tiles){
-  counts[tile]=(counts[tile]||0)+1;
-  if(counts[tile]===3){
-   cleared+=3;
-   counts[tile]=0;
+let selectedImage = null;
+
+photo.addEventListener("change", () => {
+  const file = photo.files[0];
+
+  if (!file) return;
+
+  selectedImage = file;
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = "block";
+
+  result.textContent = "Screenshot selected. Ready to analyze.";
+});
+
+analyze.addEventListener("click", async () => {
+  if (!selectedImage) {
+    result.textContent = "Please select a screenshot first.";
+    return;
   }
- }
- return {
-  cleared,
-  remaining:tiles.length-cleared
- };
-}
 
-function testSolver(){
- const sample=[
-  "A","B","A","C","A",
-  "B","B","C","C"
- ];
- const answer=solveTiles(sample);
- document.getElementById("result").textContent=
- "Engine test complete. Sample tiles: "+
- sample.length+". Tiles cleared: "+
- answer.cleared+". Tiles remaining: "+
- answer.remaining+".";
-}
+  analyze.disabled = true;
+  statusText.textContent = "Sending screenshot...";
+  result.textContent = "Please wait while the board is analyzed.";
+
+  try {
+    const imageData = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(selectedImage);
+    });
+
+    statusText.textContent = "Analyzing board...";
+
+    const response = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        image: imageData,
+        prompt: "Analyze this Tile Match Ultimate game screenshot. Identify visible tiles, their positions, and the best safe moves. The tray holds 7 tiles and matches are made with 3 identical tiles. Clearly explain any uncertainty."
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Reader returned an error.");
+    }
+
+    result.textContent =
+      data.result || data.response || JSON.stringify(data, null, 2);
+
+    statusText.textContent = "Analysis received";
+
+  } catch (error) {
+    statusText.textContent = "Connection needs attention";
+    result.textContent =
+      "Could not analyze the screenshot: " + error.message;
+  } finally {
+    analyze.disabled = false;
+  }
+});
 </script>
 </body>
 </html>
